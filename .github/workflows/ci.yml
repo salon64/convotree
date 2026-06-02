@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Type-check & build
+        run: pnpm run build
+
+      # CI-safe: uses a mock provider, makes no API calls and needs no key.
+      # (test:mcp / test:phase0 boot the server, which needs an API key, so
+      #  they're intentionally excluded from CI.)
+      - name: Library + provider-plugin smoke test
+        run: pnpm test:lib

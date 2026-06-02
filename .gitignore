@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Build output 
+dist/
+*.tsbuildinfo
+
+# Environment / secrets, pls dont commit your api keys
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local data
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+.convotree/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+.claude/
+
+# private stuff
+deprecated/
+depricated/
+private/
+
+# Research pilot result dumps
+eval/results/
+
+# npm publish artifacts
+*.tgz
+
+# NOTE: pnpm-lock.yaml is intentionally NOT ignored — lockfiles are committed.
