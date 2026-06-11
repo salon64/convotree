@@ -3,8 +3,9 @@
 // (no fold is run). Proves server startup, tool registration, and engine wiring.
 //
 // Run with:  pnpm test:mcp   (after pnpm run build)
-// Requires an API key in .env / config (the server creates its base LLM client
-// at startup) but makes no model calls here.
+// No API key needed: if no key is configured the server falls back to a
+// missing-key client and the read-only tools exercised here still work — so this
+// is CI-safe and makes no model calls.
 
 import fs from "node:fs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
