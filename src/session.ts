@@ -12,6 +12,9 @@ export interface CreateTreeOptions {
   name: string;
   goal: string;
   contextMode?: ContextMode;
+  // When false, the Orchestrator never persists trees.active_node_id (stateless
+  // callers like the MCP server pass false; the CLI REPL leaves it at the default).
+  persistActive?: boolean;
 }
 
 export function createTree(
@@ -53,17 +56,18 @@ export function createTree(
   insertTree(db, tree);
   insertNode(db, treeId, root);
 
-  return new Orchestrator(db, llm, tree);
+  return new Orchestrator(db, llm, tree, { persistActive: opts.persistActive });
 }
 
 export function openTree(
   db: Database.Database,
   llm: LLMClient,
-  treeIdPrefix: string
+  treeIdPrefix: string,
+  opts?: { persistActive?: boolean }
 ): Orchestrator {
   const match = listTrees(db).find((t) => t.id.startsWith(treeIdPrefix));
   if (!match) {
     throw new Error(`No tree found with id starting with "${treeIdPrefix}".`);
   }
-  return new Orchestrator(db, llm, match);
+  return new Orchestrator(db, llm, match, opts);
 }

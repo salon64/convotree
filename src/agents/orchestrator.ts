@@ -14,6 +14,26 @@ import {
   goalReminderSystem,
 } from "../prompts/index.js";
 
+// Providers (Anthropic/OpenAI) reject two consecutive messages with the same role.
+// Merge adjacent same-role turns into one so a degenerate history still forms a
+// valid request — e.g. a rollback that keeps a trailing user message followed by a
+// new user turn, or a full_context segment boundary. Stored messages are untouched;
+// this only shapes the outgoing API payload.
+function mergeAdjacentSameRole(
+  messages: { role: "user" | "assistant"; content: string }[]
+): { role: "user" | "assistant"; content: string }[] {
+  const out: { role: "user" | "assistant"; content: string }[] = [];
+  for (const m of messages) {
+    const prev = out[out.length - 1];
+    if (prev && prev.role === m.role) {
+      prev.content = `${prev.content}\n\n${m.content}`;
+    } else {
+      out.push({ ...m });
+    }
+  }
+  return out;
+}
+
 // ─── Orchestrator ─────────────────────────────────────────────────────────────
 
 export class Orchestrator {
@@ -21,11 +41,23 @@ export class Orchestrator {
   private llm: LLMClient;
   private tree: ConvoTree;
   private activeNode: ConvoNode;
+  private persistActive: boolean;
 
-  constructor(db: Database.Database, llm: LLMClient, tree: ConvoTree) {
+  constructor(
+    db: Database.Database,
+    llm: LLMClient,
+    tree: ConvoTree,
+    opts?: { persistActive?: boolean }
+  ) {
     this.db = db;
     this.llm = llm;
     this.tree = tree;
+    // When false, navigation (resume/branch/park/rollback) updates the in-memory
+    // active node only and never writes trees.active_node_id. The MCP server is
+    // stateless — every op addresses a node by id — so it must not move the shared
+    // session pointer; the CLI REPL, which tracks one active node across turns,
+    // keeps the default (true) so `convotree open` resumes where you left off.
+    this.persistActive = opts?.persistActive ?? true;
 
     const node = getNode(db, tree.active_node_id);
     if (!node) throw new Error(`Active node ${tree.active_node_id} not found`);
@@ -56,7 +88,7 @@ export class Orchestrator {
     const node = getNode(this.db, nodeId);
     if (!node) throw new Error(`Node ${nodeId} not found`);
     this.activeNode = node;
-    updateActiveNode(this.db, this.tree.id, nodeId);
+    if (this.persistActive) updateActiveNode(this.db, this.tree.id, nodeId);
   }
 
   // ── Chat ───────────────────────────────────────────────────────────────────
@@ -88,10 +120,12 @@ export class Orchestrator {
       systemPrompt = goalReminderSystem(node);
     }
 
-    const llmMessages = payload.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
+    const llmMessages = mergeAdjacentSameRole(
+      payload.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }))
+    );
 
     // cache: this is a multi-turn call, so the prefix is reused across turns.
     const response = await this.llm.complete(llmMessages, systemPrompt, {
