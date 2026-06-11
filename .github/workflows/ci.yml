@@ -7,17 +7,21 @@ on:
 
 jobs:
   build-test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
+      # pnpm version comes from the "packageManager" field in package.json (single source of truth).
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -25,8 +29,11 @@ jobs:
       - name: Type-check & build
         run: pnpm run build
 
-      # CI-safe: uses a mock provider, makes no API calls and needs no key.
-      # (test:mcp / test:phase0 boot the server, which needs an API key, so
-      #  they're intentionally excluded from CI.)
+      # Both smoke tests are CI-safe: test:lib uses a mock provider and test:mcp relies on
+      # the server's missing-key fallback (read-only tools only), so neither makes an API
+      # call or needs a secret. They also exercise the native better-sqlite3 load on each OS.
       - name: Library + provider-plugin smoke test
         run: pnpm test:lib
+
+      - name: MCP server smoke test
+        run: pnpm test:mcp

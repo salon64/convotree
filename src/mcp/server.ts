@@ -64,6 +64,10 @@ try {
 const base = createTree(db, baseClient, {
   name: `mcp-session-${new Date().toISOString()}`,
   goal: "MCP fold session",
+  // Stateless server: never move the shared trees.active_node_id pointer (every
+  // tool addresses its node by id), so a later CLI `open` of this tree still
+  // resumes at the root instead of a random parked/merged branch.
+  persistActive: false,
 });
 const treeId = base.getTreeId();
 const rootId = base.getActiveNode().id;
@@ -79,7 +83,7 @@ function orchFor(model?: string, provider?: string): Orchestrator {
     provider: provider ?? baseConfig.provider,
     model: model ?? baseConfig.model,
   };
-  return openTree(db, createLLMClient(cfg), treeId);
+  return openTree(db, createLLMClient(cfg), treeId, { persistActive: false });
 }
 
 function resolveOrThrow(orch: Orchestrator, prefix: string): ConvoNode {
@@ -158,7 +162,7 @@ server.registerTool(
 
     let foldOrch: Orchestrator;
     try {
-      foldOrch = openTree(db, createLLMClient(foldConfig), treeId);
+      foldOrch = openTree(db, createLLMClient(foldConfig), treeId, { persistActive: false });
     } catch (e: any) {
       return errResult(e);
     }

@@ -40,6 +40,7 @@ desktop.ini
 deprecated/
 depricated/
 private/
+*.private.md
 
 # Research pilot result dumps
 eval/results/

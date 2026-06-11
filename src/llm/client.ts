@@ -4,6 +4,11 @@ import { LLMClient, LLMMessage, LLMResponse, CompleteOptions } from "../models/t
 import { getApiKey } from "../config.js";
 import { registerProvider } from "./registry.js";
 
+// Safety cap on Anthropic server-tool (web_search) "pause_turn" continuations, so a
+// runaway search can't re-send the conversation indefinitely. If the model is still
+// paused at this many rounds, the answer is treated as truncated (see below).
+const MAX_WEB_SEARCH_ROUNDS = 6;
+
 // ─── Anthropic ───────────────────────────────────────────────────────────────
 
 class AnthropicClient implements LLMClient {
@@ -91,7 +96,15 @@ class AnthropicClient implements LLMClient {
         apiMessages.push({ role: "assistant", content: response.content });
       }
       guard++;
-    } while (stopReason === "pause_turn" && guard < 6);
+    } while (stopReason === "pause_turn" && guard < MAX_WEB_SEARCH_ROUNDS);
+
+    // Hit the safety cap while the model still wanted to keep going: the answer is
+    // partial. Flag it so a truncated result isn't summarized/parked as if final.
+    if (stopReason === "pause_turn") {
+      textParts.push(
+        `\n\n[truncated: web_search exceeded the ${MAX_WEB_SEARCH_ROUNDS}-round limit; this answer may be incomplete]`
+      );
+    }
 
     // Keep web-search sources attached to the text so the cited URLs survive into
     // the branch and its summary (otherwise they're lost when the turn is distilled).
