@@ -29,7 +29,10 @@ Register the MCP server. The same `mcpServers` shape works across clients:
 ```json
 {
   "mcpServers": {
-    "convotree": { "command": "node", "args": ["/abs/path/to/convotree/dist/mcp/server.js"] }
+    "convotree": {
+      "command": "node",
+      "args": ["/abs/path/to/convotree/dist/mcp/server.js"]
+    }
   }
 }
 ```
@@ -38,12 +41,12 @@ Per-client config locations (Claude Code, Cursor, Cline, Windsurf, Claude Deskto
 
 ## The tools your agent gets
 
-| Tool | What it does |
-|------|--------------|
-| **`convo_fold`** | One-shot: run a sub-task in an isolated branch and return only a structured summary. Optional `web_search`, `context`, and a per-fold `model`/`provider`. |
-| `branch_open` / `branch_chat` / `branch_park` / `branch_merge` | Multi-turn manual branches. Open one, chat a few turns, then summarize it (`park`) or fold the outcome into the parent (`merge`). Addressed by short id. |
-| `branch_resume` / `branch_rollback` | Reopen a branch with its message history, or fork it from an earlier point. |
-| `convo_tree` / `convo_status` | Inspect the session tree (read-only). |
+| Tool                                                           | What it does                                                                                                                                              |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`convo_fold`**                                               | One-shot: run a sub-task in an isolated branch and return only a structured summary. Optional `web_search`, `context`, and a per-fold `model`/`provider`. |
+| `branch_open` / `branch_chat` / `branch_park` / `branch_merge` | Multi-turn manual branches. Open one, chat a few turns, then summarize it (`park`) or fold the outcome into the parent (`merge`). Addressed by short id.  |
+| `branch_resume` / `branch_rollback`                            | Reopen a branch with its message history, or fork it from an earlier point.                                                                               |
+| `convo_tree` / `convo_status`                                  | Inspect the session tree (read-only).                                                                                                                     |
 
 ## See it work
 
@@ -78,7 +81,7 @@ branch_merge(7ccf1ed5)                            → one-paragraph conclusion i
 
 ## What it does well
 
-- Pick a model per fold: `anthropic`, `openai`, `ollama` (local), `groq`, `openrouter`, `gemini`, `deepseek`, `xai`. Use a frontier model for the hard folds and a cheap or local one for light work.
+- Pick a model per fold: `anthropic`, `openai`, `ollama` (local), `groq`, `openrouter`, `gemini`, `deepseek`, `xai` — e.g. a frontier model for hard folds, a cheap or local one for light ones. Whether mixing models nets a saving depends on your tasks; convotree logs each fold's cost, tokens, and latency so you can measure it rather than assume it.
 - Folds reason over what you give them. They have no file or shell access by design, so you pass material in through `context` or turn on `web_search`. Your host agent keeps the tool-using work; convotree distills the thinking.
 - Everything is saved. Each branch, summary, and token count sits in one SQLite file you can open anytime.
 - Heavy folds emit MCP progress, so they don't trip client timeouts.
@@ -95,7 +98,10 @@ The engine is importable for your own workflows:
 import { createTree, getDB, createLLMClient, loadConfig } from "convotree";
 
 const config = loadConfig();
-const orch = createTree(getDB(config.db_path), createLLMClient(config), { name: "demo", goal: "..." });
+const orch = createTree(getDB(config.db_path), createLLMClient(config), {
+  name: "demo",
+  goal: "...",
+});
 
 await orch.chat("hello");
 const branch = await orch.branch("investigate X", "research", "summary");
@@ -111,7 +117,11 @@ Manage it with `convotree config` (`show`, `set <field> <value>`, `set-key <key>
 
 ## CLI
 
-convotree also ships a CLI that drives the same engine interactively. `convotree init <name> <goal>` drops you into a branch / park / merge / rollback REPL (`convotree --help` for the rest).
+convotree also ships a CLI that drives the same engine interactively. `convotree init <name> <goal>` drops you into a REPL with `/branch`, `/park`, `/merge`, and `/rollback` (type `/help` for all, or `convotree --help` for the outer commands).
+
+## Prior work
+
+convotree packages established ideas; it doesn't invent them. Context folding itself comes from [Context-Folding](https://arxiv.org/abs/2510.11967) (the _trained_ version of branch-work-summarize). Per-task model routing, mixture-of-agents merging, and git-style branch / merge / rollback for agent context are all active research areas — see [R2-Reasoner (Route-and-Reason)](https://arxiv.org/abs/2506.05901), [Mixture-of-Agents](https://arxiv.org/abs/2406.04692), [GCC](https://arxiv.org/html/2508.00031), and [ContextBranch](https://arxiv.org/html/2512.13914v1). convotree's contribution is an **engineering** one: a training-free, MCP-native packaging of these into one persistent fold-tree with per-fold model choice and a typed-summary merge. It's a tool, not a new method.
 
 ## Status
 
